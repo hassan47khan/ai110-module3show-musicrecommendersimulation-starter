@@ -17,17 +17,58 @@ Replace this paragraph with your own summary of what your version does.
 
 ## How The System Works
 
-Explain your design in plain language.
+This recommender uses a **content-based** approach: instead of learning from what other listeners enjoy, it compares the measurable attributes of each song in the catalog against a stored taste profile for the user. Every track is scored independently, then ranked, and the top results are returned. The simulation prioritizes **transparency and interpretability** — each recommendation can be traced back to the specific features that earned it points, so the behavior of the system is easy to reason about and tune.
 
-Some prompts to answer:
+### Features used
 
-- What features does each `Song` use in your system
-  - For example: genre, mood, energy, tempo
-- What information does your `UserProfile` store
-- How does your `Recommender` compute a score for each song
-- How do you choose which songs to recommend
+Each `Song` object exposes:
 
-You can include a simple diagram or bullet list if helpful.
+- `title`, `artist` — identity
+- `genre` — categorical (e.g. `indie folk`, `synthwave`, `lofi`)
+- `mood` — categorical (e.g. `chill`, `melancholy`, `intense`)
+- `energy` — numeric, 0.0–1.0
+- `tempo_bpm` — numeric, beats per minute
+- `valence` — numeric, 0.0–1.0 (musical positivity)
+- `danceability` — numeric, 0.0–1.0
+- `acousticness` — numeric, 0.0–1.0
+
+Each `UserProfile` stores:
+
+- `favorite_genre`, `favorite_mood` — the categorical targets
+- `target_energy`, `target_danceability`, `target_acousticness` — numeric targets on the 0.0–1.0 scale
+- (Optional) `target_tempo_bpm`, `target_valence`, and per-feature `weights` for tuning
+
+### Algorithm recipe
+
+For each song, the recommender computes:
+
+| Component | Rule | Points |
+|---|---|---|
+| Genre match | `song.genre == profile.favorite_genre` | **+2.0** |
+| Mood match | `song.mood == profile.favorite_mood` | **+1.0** |
+| Numerical similarity | `1.0 - abs(song.feature - profile.target)` per feature, scaled by weight | **0.0 – weight** |
+
+Numerical similarity is applied to `energy`, `danceability`, and `acousticness` (each already on 0.0–1.0). A song exactly on target earns the full feature weight; a song at the opposite end earns zero. The final score is the sum of all components. Songs are then sorted by score (descending), ties broken by closer energy match, and the top **K** are returned alongside a short list of reasons such as `"genre match"` or `"near target energy"`.
+
+### Pseudocode
+
+```
+for song in catalog:
+    score = 0
+    if song.genre == profile.favorite_genre: score += 2.0
+    if song.mood  == profile.favorite_mood:  score += 1.0
+    for feat in [energy, danceability, acousticness]:
+        score += weight[feat] * (1 - abs(song[feat] - profile[feat]))
+return top_K(sorted(scored, by=score, desc))
+```
+
+### Known biases and limitations
+
+- **Genre over-weighting.** At +2.0, an exact genre match can outweigh several near-perfect numeric matches combined. A user who likes `indie folk` may rarely see adjacent styles like `indie pop` or `acoustic` surface, even when they'd fit.
+- **Filter-bubble effect.** Because the system rewards tracks that look like the stored profile, it reinforces the user's current taste and offers little opportunity for discovery. There is no exploration term, no randomness, and no collaborative signal from other listeners.
+- **Equal weighting across features ignores salience.** Not every numeric feature matters equally for every user, but the recipe treats them uniformly unless weights are tuned by hand.
+- **Categorical sparsity.** Rare moods (e.g. `melancholy`) match very few songs; a profile pinned to one can collapse to a tiny result set.
+- **Cold-start and catalog bias.** The system cannot recommend what isn't in the CSV, and underrepresented genres in the dataset are structurally underrecommended regardless of a user's taste.
 
 ---
 

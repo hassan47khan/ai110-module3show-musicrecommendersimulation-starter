@@ -19,18 +19,23 @@ Prompts:
 
 ---
 
-## 3. How the Model Works  
+## 3. How the Model Works
 
-Explain your scoring approach in simple language.  
+The recommender works like a judge handing out points. Every song in the catalog starts at zero, and we go through a short checklist for each one, adding points when the song matches what the listener said they wanted.
 
-Prompts:  
+**What we look at for every song:** its genre (pop, rock, lofi, etc.), its mood (happy, chill, intense, etc.), and a few numeric "vibe" measurements between 0 and 1 — how energetic it is, how danceable it is, and how acoustic it is.
 
-- What features of each song are used (genre, energy, mood, etc.)  
-- What user preferences are considered  
-- How does the model turn those into a score  
-- What changes did you make from the starter logic  
+**What the listener tells us:** a favorite genre, a favorite mood, and (optionally) a target energy level — basically "I'm in a happy pop mood and I want something upbeat."
 
-Avoid code here. Pretend you are explaining the idea to a friend who does not program.
+**How the points are awarded:**
+
+- If the song's genre matches the listener's pick exactly, it gets **+2 points**. Genre is the strongest signal, so it carries the most weight.
+- If the mood matches, it gets another **+1 point**.
+- For each numeric vibe (energy, danceability, acousticness) the listener specified, we measure how close the song's value is to the listener's target. A perfect match is worth close to a full point, and the reward shrinks the farther apart they are. A song that is way off on energy gets zero for that category instead of a negative penalty, so no single mismatch wrecks a song that's otherwise a good fit.
+
+Once every song has a score, we sort them from highest to lowest and show the top five. Alongside each pick, we also show the specific reasons it scored well — "genre match", "mood match", "energy proximity" — so the listener can see *why* the system thought this one belonged on the list, not just that it does.
+
+The main change from the starter code: the starter just returned the first five songs in the file regardless of preference. Now the ranking actually responds to the listener, and every recommendation comes with a plain-language explanation.
 
 ---
 
