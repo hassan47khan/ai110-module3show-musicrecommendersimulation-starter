@@ -66,24 +66,33 @@ def load_songs(csv_path: str) -> List[Dict]:
             })
     return songs
 
+# --- Scoring weights (Phase 4 "Weight Shift" experiment) -------------------
+# Baseline recipe was: GENRE=2.0, MOOD=1.0, NUMERIC=1.0 per feature.
+# Weight Shift: halve the genre weight, double the numeric-feature weight,
+# leave mood unchanged. Change these constants to re-run the experiment.
+GENRE_WEIGHT = 1.0        # was 2.0
+MOOD_WEIGHT = 1.0         # unchanged
+NUMERIC_WEIGHT = 2.0      # was 1.0, applied to energy / danceability / acousticness
+# ---------------------------------------------------------------------------
+
 def score_song(user_prefs: Dict, song: Dict) -> Tuple[float, List[str]]:
     """Score one song against user_prefs and return (total_score, list_of_reason_strings)."""
     score = 0.0
     reasons: List[str] = []
 
     if "genre" in user_prefs and user_prefs["genre"] == song.get("genre"):
-        score += 2.0
-        reasons.append("genre match (+2.0)")
+        score += GENRE_WEIGHT
+        reasons.append(f"genre match (+{GENRE_WEIGHT:.1f})")
 
     if "mood" in user_prefs and user_prefs["mood"] == song.get("mood"):
-        score += 1.0
-        reasons.append("mood match (+1.0)")
+        score += MOOD_WEIGHT
+        reasons.append(f"mood match (+{MOOD_WEIGHT:.1f})")
 
     for attr in ("energy", "danceability", "acousticness"):
         if attr in user_prefs and attr in song:
             target = float(user_prefs[attr])
             value = float(song[attr])
-            proximity = max(0.0, 1.0 - abs(target - value))
+            proximity = max(0.0, 1.0 - abs(target - value)) * NUMERIC_WEIGHT
             if proximity > 0:
                 score += proximity
                 reasons.append(f"{attr} proximity (+{proximity:.2f})")
